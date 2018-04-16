@@ -7,12 +7,10 @@
 #include "FPSCharacter.generated.h"
 
 class UInputComponent;
-class AFPSProjectile;
-class USoundBase;
 class UAnimMontage;
 class USkeletalMeshComponent;
-class USceneComponent;
 class UCameraComponent;
+class AWeapon;
 
 UCLASS(config = Game)
 class AFPSCharacter : public ACharacter
@@ -22,7 +20,7 @@ public:
     AFPSCharacter ();
 
     /** Returns Mesh1P subobject **/
-    FORCEINLINE USkeletalMeshComponent* GetMesh1P () const
+    FORCEINLINE USkeletalMeshComponent* GetMesh () const
     {
         return mMesh;
     }
@@ -31,11 +29,14 @@ public:
     {
         return mFirstPersonCameraComponent;
     }
-protected:
-    void BeginPlay () override;
 
-    /** Fires a projectile. */
-    void OnFire (void);
+    UFUNCTION (BlueprintCallable)
+        void PickWeapon (TSubclassOf<AWeapon> weapon);
+protected:
+    void BeginPlay (void) override;
+
+    /** Shoots a projectile. */
+    void Shoot (void);
 
     /** Handles moving forward/backward */
     void MoveForward (const float Val);
@@ -62,15 +63,6 @@ public:
     /** Base look up/down rate, in deg/sec. Other scaling may affect final rate. */
     UPROPERTY (VisibleAnywhere, BlueprintReadOnly, Category = "FPS|Camera")
         float                       mBaseLookUpRate;
-    /** Gun muzzle's offset from the characters location */
-    UPROPERTY (EditAnywhere, BlueprintReadWrite, Category = "FPS|Gameplay")
-        FVector                     mGunOffset;
-    /** Projectile class to spawn */
-    UPROPERTY (EditDefaultsOnly, Category = "FPS|Projectile")
-        TSubclassOf<AFPSProjectile> mProjectileClass;
-    /** Sound to play each time we fire */
-    UPROPERTY (EditAnywhere, BlueprintReadWrite, Category = "FPS|Gameplay")
-        USoundBase*                 mFireSound;
     /** AnimMontage to play each time we fire */
     UPROPERTY (EditAnywhere, BlueprintReadWrite, Category = "FPS|Gameplay")
         UAnimMontage*               mFireAnimation;
@@ -78,13 +70,10 @@ protected:
     /** Pawn mesh: 1st person view (arms; seen only by self) */
     UPROPERTY (VisibleDefaultsOnly, Category = "FPS|Mesh")
         USkeletalMeshComponent* mMesh;
-    /** Gun mesh: 1st person view (seen only by self) */
-    UPROPERTY (VisibleDefaultsOnly, Category = "FPS|Mesh")
-        USkeletalMeshComponent* mGun;
-    /** Location on gun mesh where projectiles should spawn. */
-    UPROPERTY (VisibleDefaultsOnly, Category = "FPS|Mesh")
-        USceneComponent*        mMuzzleLocation;
     /** First person camera */
     UPROPERTY (VisibleAnywhere, BlueprintReadOnly, Category = "FPS|Camera", meta = (AllowPrivateAccess = "true"))
         UCameraComponent*       mFirstPersonCameraComponent;
+    /** First person camera */
+    UPROPERTY (VisibleDefaultsOnly, Category = "FPS|Weapon", meta = (AllowPrivateAccess = "true"))
+        AWeapon*                mWeapon;
 };

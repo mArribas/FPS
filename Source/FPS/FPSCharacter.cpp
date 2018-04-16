@@ -1,13 +1,12 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
 #include "FPSCharacter.h"
-#include "FPSProjectile.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/InputSettings.h"
-#include "Kismet/GameplayStatics.h"
+#include "Public/Weapon.h"
 
 DEFINE_LOG_CATEGORY_STATIC (LogFPChar, Warning, All);
 
@@ -32,7 +31,7 @@ AFPSCharacter::AFPSCharacter ()
     // Create a mesh component that will be used when being viewed from a '1st
     // person' view (when controlling this pawn).
     mMesh                     =
-        CreateDefaultSubobject<USkeletalMeshComponent> (TEXT ("CharacterMesh1P"));
+        CreateDefaultSubobject<USkeletalMeshComponent> (TEXT ("CharacterMesh"));
     mMesh->SetOnlyOwnerSee (true);
     mMesh->SetupAttachment (mFirstPersonCameraComponent);
     mMesh->bCastDynamicShadow = false;
@@ -40,36 +39,13 @@ AFPSCharacter::AFPSCharacter ()
     mMesh->RelativeRotation   = FRotator{ 1.9f, -19.19f, 5.2f };
     mMesh->RelativeLocation   = FVector { -0.5f, -4.4f, -155.7f };
 
-    // Create a gun mesh component
-    mGun                     =
-        CreateDefaultSubobject<USkeletalMeshComponent> (TEXT ("FP_Gun"));
-    // Only the owning player will see this mesh.
-    mGun->SetOnlyOwnerSee (true);
-    mGun->bCastDynamicShadow = false;
-    mGun->CastShadow         = false;
-    mGun->SetupAttachment(mMesh, TEXT("GripPoint"));
-    //mGun->SetupAttachment (RootComponent);
-
-    mMuzzleLocation =
-        CreateDefaultSubobject<USceneComponent> (TEXT ("MuzzleLocation"));
-    mMuzzleLocation->SetupAttachment (mGun);
-    mMuzzleLocation->SetRelativeLocation (FVector (0.2f, 48.4f, -10.6f));
-
-    // Default offset from the character location for projectiles to spawn
-    mGunOffset = FVector (100.0f, 0.0f, 10.0f);
+    mWeapon = nullptr;
 }
 
-void AFPSCharacter::BeginPlay ()
+void AFPSCharacter::BeginPlay (void)
 {
     // Call the base class  
     Super::BeginPlay ();
-
-    // Attach gun mesh component to Skeleton, doing it here because the skeleton
-    // is not yet created in the constructor.
-    mGun->AttachToComponent (
-        mMesh
-        , FAttachmentTransformRules{ EAttachmentRule::SnapToTarget, true }
-        , TEXT ("GripPoint"));
 }
 
 void AFPSCharacter::SetupPlayerInputComponent (
@@ -92,10 +68,10 @@ void AFPSCharacter::SetupPlayerInputComponent (
 
     // Bind fire event.
     PlayerInputComponent->BindAction (
-        "Fire"
+        "Shoot"
         , IE_Pressed
         , this
-        , &AFPSCharacter::OnFire);
+        , &AFPSCharacter::Shoot);
 
     // Bind movement events.
     PlayerInputComponent->BindAxis (
@@ -131,43 +107,31 @@ void AFPSCharacter::SetupPlayerInputComponent (
         , &AFPSCharacter::LookUpAtRate);
 }
 
-void AFPSCharacter::OnFire ()
+void AFPSCharacter::PickWeapon (TSubclassOf<AWeapon> weapon)
 {
-    // Try and fire a projectile.
-    if (!mProjectileClass) return;
+    if (!weapon || mWeapon) return;
 
-    UWorld* const World{ GetWorld () };
+    mWeapon                                 =
+        GetWorld ()->SpawnActor<AWeapon> (
+            weapon
+            , FVector{ 0, 0, 0 }
+            , FRotator::ZeroRotator);
+    mWeapon->GetMesh ()->SetupAttachment (mMesh, TEXT ("GripPoint"));
+    mWeapon->GetMesh ()->bCastDynamicShadow = false;
+    mWeapon->GetMesh ()->CastShadow         = false;
+    // Attach weapon to Skeleton.
+    mWeapon->AttachToComponent (
+        mMesh
+        , FAttachmentTransformRules{ EAttachmentRule::SnapToTarget, true }
+        , TEXT ("GripPoint"));
+}
 
-    if (!World) return;
+void AFPSCharacter::Shoot (void)
+{
+    // Try shooting the weapon.
+    if (!mWeapon) return;
 
-    const FRotator SpawnRotation{ GetControlRotation () };
-    // MuzzleOffset is in camera space, so transform it to world space before
-    // offsetting from the character location to find the final muzzle position.
-    const FVector  SpawnLocation{ 
-        ((mMuzzleLocation) ?
-            mMuzzleLocation->GetComponentLocation ()
-            : GetActorLocation ()) + SpawnRotation.RotateVector (mGunOffset) };
-
-    // Set Spawn Collision Handling Override.
-    FActorSpawnParameters ActorSpawnParams;
-    ActorSpawnParams.SpawnCollisionHandlingOverride =
-        ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-
-    // Spawn the projectile at the muzzle.
-    World->SpawnActor<AFPSProjectile> (
-        mProjectileClass
-        , SpawnLocation
-        , SpawnRotation
-        , ActorSpawnParams);
-
-    // Try and play the sound if specified.
-    if (mFireSound)
-    {
-        UGameplayStatics::PlaySoundAtLocation (
-            this
-            , mFireSound
-            , GetActorLocation ());
-    }
+    mWeapon->Shoot (GetControlRotation ());
 
     // Get the animation object for the arms mesh.
     UAnimInstance* AnimInstance{ mMesh->GetAnimInstance () };
