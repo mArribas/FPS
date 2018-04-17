@@ -25,8 +25,10 @@ AFPSProjectile::AFPSProjectile ()
     mProjectileMovement                           =
         CreateDefaultSubobject<UProjectileMovementComponent> (TEXT ("ProjectileComp"));
     mProjectileMovement->UpdatedComponent         = mCollisionComp;
-    mProjectileMovement->InitialSpeed             = 3000.f;
-    mProjectileMovement->MaxSpeed                 = 3000.f;
+    // Average speed of a bullet: 370 m/s.
+    // Since unreal use cm: 37000 cm/s.
+    mProjectileMovement->InitialSpeed             = 37000.f;
+    mProjectileMovement->MaxSpeed                 = 37000.f;
     mProjectileMovement->bRotationFollowsVelocity = true;
     mProjectileMovement->bShouldBounce            = true;
 

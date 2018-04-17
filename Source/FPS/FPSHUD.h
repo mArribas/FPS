@@ -16,10 +16,19 @@ class AFPSHUD : public AHUD
 public:
     AFPSHUD ();
 
+    UFUNCTION (BlueprintCallable)
+        void ChangeCrosshairTexture (
+            UTexture2D* const texture,
+            const uint8       width,
+            const uint8       height);
+
     /** Primary draw call for the HUD */
-    virtual void DrawHUD (void) override;
+    void DrawHUD (void) override;
 protected:
     /** Crosshair asset pointer */
     UPROPERTY (EditAnywhere, BlueprintReadOnly, Category = "FPS|HUD")
         UTexture2D* mCrosshairTex;
+
+    uint8 mCrosshairTexWidth;
+    uint8 mCrosshairTexHeight;
 };

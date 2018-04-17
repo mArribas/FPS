@@ -13,7 +13,7 @@ DEFINE_LOG_CATEGORY_STATIC (LogFPChar, Warning, All);
 AFPSCharacter::AFPSCharacter ()
 {
     // Set size for collision capsule.
-    GetCapsuleComponent ()->InitCapsuleSize (55.f, 96.0f);
+    GetCapsuleComponent ()->InitCapsuleSize (30.f, 96.0f);
 
     // Set our turn rates for input.
     mBaseTurnRate   = 45.f;
@@ -116,7 +116,7 @@ void AFPSCharacter::PickWeapon (TSubclassOf<AWeapon> weapon)
             weapon
             , FVector{ 0, 0, 0 }
             , FRotator::ZeroRotator);
-    mWeapon->GetMesh ()->SetupAttachment (mMesh, TEXT ("GripPoint"));
+
     mWeapon->GetMesh ()->bCastDynamicShadow = false;
     mWeapon->GetMesh ()->CastShadow         = false;
     // Attach weapon to Skeleton.

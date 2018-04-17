@@ -22,10 +22,10 @@ AWeapon::AWeapon ()
     mMuzzleLocation =
         CreateDefaultSubobject<USceneComponent> (TEXT ("MuzzleLocation"));
     mMuzzleLocation->SetupAttachment (mMesh);
-    mMuzzleLocation->SetRelativeLocation (FVector (0.2f, 48.4f, -10.6f));
 
     // Default offset from the character location for projectiles to spawn
-    mOffset = FVector (100.0f, 0.0f, 10.0f);
+    //mOffset = FVector (100.0f, 0.0f, 10.0f);
+    mOffset = FVector{ 17.f, -7.5f, 17.5f };
 }
 
 USkeletalMeshComponent* AWeapon::GetMesh (void) const
@@ -38,6 +38,12 @@ void AWeapon::BeginPlay (void)
 {
     Super::BeginPlay ();
 
+    if (!mMuzzleLocation) return;
+
+    /*if (mMesh->GetSocketByName ("Muzzle"))
+        mMuzzleLocation->SetWorldLocation (mMesh->GetSocketLocation ("Muzzle"));
+    else*/
+        mMuzzleLocation->SetRelativeLocation (FVector{ (0.f, 53.f, 11.25f) });
 }
 
 // Called every frame.
@@ -56,22 +62,16 @@ void AWeapon::Shoot (const FRotator direction) const
 
     if (!World) return;
 
-    // MuzzleOffset is in camera space, so transform it to world space before
-    // offsetting from the character location to find the final muzzle position.
-    const FVector  SpawnLocation{
-        ((mMuzzleLocation) ?
-        mMuzzleLocation->GetComponentLocation ()
-            : GetActorLocation ()) + direction.RotateVector (mOffset) };
-
     // Set Spawn Collision Handling Override.
     FActorSpawnParameters ActorSpawnParams;
     ActorSpawnParams.SpawnCollisionHandlingOverride =
-        ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+        ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
+        //ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 
     // Spawn the projectile at the muzzle.
     World->SpawnActor<AFPSProjectile> (
         mProjectileClass
-        , SpawnLocation
+        , mMuzzleLocation->GetComponentLocation ()
         , direction
         , ActorSpawnParams);
 
