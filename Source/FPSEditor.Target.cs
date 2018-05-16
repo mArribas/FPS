@@ -5,9 +5,9 @@ using System.Collections.Generic;
 
 public class FPSEditorTarget : TargetRules
 {
-	public FPSEditorTarget(TargetInfo Target) : base(Target)
-	{
-		Type = TargetType.Editor;
-		ExtraModuleNames.Add("FPS");
-	}
+    public FPSEditorTarget(TargetInfo Target) : base(Target)
+    {
+        Type = TargetType.Editor;
+        ExtraModuleNames.Add("FPS");
+    }
 }
