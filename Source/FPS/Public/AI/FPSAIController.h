@@ -34,6 +34,7 @@ public:
     void UpdateControlRotation     (
         float DeltaTime,
         bool  bUpdatePawn = true) override;
+
     /**
     * Called each time an actor is sensed or stopped being sensed.
     * Updates the current target and the stimulus associated with it.
@@ -45,16 +46,15 @@ private:
     * Sets the current target and the stimulus associated with it, to the
     * actor pointer and stimulus passed.
     */
-    void SetTarget           (
+    void SetNewTarget        (
         AActor* const     SensedActor,
         const FAIStimulus Stimulus);
+    void UpdateTarget        (const FAIStimulus NewStimulus);
     /**
     * Clears the current target if the actor pointer and stimulus passed are
     * the current target and the stimulus associated with it.
     */
-    void ClearTarget         (
-        AActor* const     SensedActor,
-        const FAIStimulus Stimulus);
+    void ClearTarget         ();
     /** Sets the closest 'player' to the controlled pawn as the current target. */
     void TargetClosestPlayer (
         APawn* const      MyPawn,
@@ -65,10 +65,8 @@ private:
     void ClearTargetAndFocus ();
 
     /** Blackboard component.*/
-    UPROPERTY (transient)
     UBlackboardComponent*   mBlackBoard;
     /** Behavior tree component.*/
-    UPROPERTY (transient)
     UBehaviorTreeComponent* mBehaviorTree;
     /** AI perception component. */
     UPROPERTY (
@@ -84,10 +82,10 @@ private:
     * focusing at an actor.
     */
     FVector                 mWeaponLocation;
-    /** Stimulus associated with mCurrentTarget. */
-    FAIStimulus             mTargetStimulus;
     /** Current target of the AI. */
     AActor*                 mCurrentTarget;
+    /** Stimulus associated with mCurrentTarget. */
+    FAIStimulus             mTargetStimulus;
     /** ID of the blackboard Target key.*/
     uint8                   mTargetKeyID;
     /** ID of the blackboard ShouldInvestigate key.*/

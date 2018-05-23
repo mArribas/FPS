@@ -7,6 +7,9 @@
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISenseConfig_Hearing.h"
 
+#define SIGHT   0
+#define HEARING 1
+
 AFPSAIController::AFPSAIController ()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -96,6 +99,7 @@ void AFPSAIController::Initialize (UBehaviorTree* BehaviorTree)
 
     mBlackBoard->InitializeBlackboard (*BehaviorTree->BlackboardAsset);
     mBehaviorTree->StartTree          (*BehaviorTree);
+    BrainComponent = mBehaviorTree;
 
     // Set TargetKeyID, "Target" is the name of the key in the Blackboard.
     mTargetKeyID             = mBlackBoard->GetKeyID ("Target");
@@ -160,82 +164,50 @@ void AFPSAIController::OnTargetPerceptionUpdated (
     // Check if the sensed actor is already the target.
     if (mCurrentTarget == SensedActor)
     {
-        // Clear target if it cannot be sensed.
-        if (!Stimulus.WasSuccessfullySensed ())
-        {
-            ClearTarget (SensedActor, Stimulus);
-        }
-        else
-        {
-            // If the sensed actor is a player, change target stimulus in case
-            // the current stimulus is 'Hearing' and the new one is 'Sight'.
-            if ((mCurrentTarget->ActorHasTag ("Player"))
-                && (mTargetStimulus.Type == 1)
-                && (Stimulus.Type == 0))
-            {
-                // Stop movement so that the AICharacter would move towards the last
-                // known player location without passing through the location it was
-                // moving towards.
-                StopMovement ();
-
-                // Update location to investigate.
-                mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
-                    mPointToInvestigateKeyID
-                    , Stimulus.StimulusLocation);
-
-                // Change target stimulus.
-                mTargetStimulus = Stimulus;
-            }
-            // If the sensed actor is a player, update the location to
-            // investigate.
-            else if (!mCurrentTarget->ActorHasTag ("Player"))
-            {
-                mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
-                    mPointToInvestigateKeyID
-                    , Stimulus.StimulusLocation);
-            }
-        }
+        UpdateTarget (Stimulus);
 
         return;
     }
+    // Return if the stimulus that stopped being sensed was not from the
+    // current target.
     else if (!Stimulus.WasSuccessfullySensed ())
     {
         return;
     }
 
-    if (!mCurrentTarget) SetTarget (SensedActor, Stimulus);
-
-    // Return if the target is a player and the sensed actor is not.
-    if (mCurrentTarget->ActorHasTag ("Player")
-        && !SensedActor->ActorHasTag ("Player"))
+    if (!mCurrentTarget)
     {
-        return;
+        SetNewTarget (SensedActor, Stimulus);
     }
-
     // Prioritize targeting a player.
-    if (!mCurrentTarget->ActorHasTag ("Player")
+    else if (!mCurrentTarget->ActorHasTag ("Player")
         && SensedActor->ActorHasTag ("Player"))
     {
-        SetTarget (SensedActor, Stimulus);
-
-        return;
+        SetNewTarget (SensedActor, Stimulus);
     }
-
     // Target the closest player.
-    TargetClosestPlayer (MyPawn, SensedActor, Stimulus);
+    else if (mCurrentTarget->ActorHasTag ("Player")
+        && SensedActor->ActorHasTag ("Player"))
+    {
+        TargetClosestPlayer (MyPawn, SensedActor, Stimulus);
+    }
 }
 
-void AFPSAIController::SetTarget (
+void AFPSAIController::SetNewTarget (
     AActor* const     SensedActor,
     const FAIStimulus Stimulus)
 {
-    // Set the current target and focus to it.
+    // Set the current target/stimulus and focus to target.
     mCurrentTarget  = SensedActor;
-    SetFocus (SensedActor, EAIFocusPriority::Gameplay);
     mTargetStimulus = Stimulus;
 
-    // If the target is a player finish the investigation.
-    if (mCurrentTarget->ActorHasTag ("Player"))
+    // Update location to investigate.
+    mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
+        mPointToInvestigateKeyID
+        , Stimulus.StimulusLocation);
+
+    if (mCurrentTarget->ActorHasTag ("Player")
+        && (Stimulus.Type == SIGHT))
     {
         // Stop movement so that the AICharacter would move towards the last
         // known player location without passing through the location it was
@@ -251,6 +223,8 @@ void AFPSAIController::SetTarget (
         mBlackBoard->SetValue<UBlackboardKeyType_Object> (
             mTargetKeyID
             , SensedActor);
+
+        SetFocus (SensedActor, EAIFocusPriority::Gameplay);
     }
     else
     {
@@ -258,23 +232,86 @@ void AFPSAIController::SetTarget (
         mBlackBoard->SetValue<UBlackboardKeyType_Bool> (
             mShouldInvestigateKeyID
             , true);
-    }
 
-    // Update location to investigate.
-    mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
-        mPointToInvestigateKeyID
-        , Stimulus.StimulusLocation);
+        SetFocalPoint (Stimulus.StimulusLocation, EAIFocusPriority::Gameplay);
+    }
 }
 
-void AFPSAIController::ClearTarget (
-    AActor* const     SensedActor,
-    const FAIStimulus Stimulus)
+void AFPSAIController::UpdateTarget (const FAIStimulus NewStimulus)
+{
+    // Clear target if it cannot be sensed.
+    if (!NewStimulus.WasSuccessfullySensed ())
+    {
+        if (mTargetStimulus.Type == NewStimulus.Type) ClearTarget ();
+
+        return;
+    }
+
+    bool IsAPlayer{ mCurrentTarget->ActorHasTag ("Player") };
+
+    // If the current target is a player, change target stimulus in case the
+    // current stimulus is 'Hearing' and the new one is 'Sight'.
+    if ((IsAPlayer)
+        && (mTargetStimulus.Type == HEARING)
+        && (NewStimulus.Type == SIGHT))
+    {
+        // Update target stimulus.
+        mTargetStimulus  = NewStimulus;
+
+        // Stop movement so that the AICharacter would move towards the last
+        // known player location without passing through the location it was
+        // moving towards.
+        StopMovement ();
+
+        // Set the Blackboard Target.
+        mBlackBoard->SetValue<UBlackboardKeyType_Object> (
+            mTargetKeyID
+            , mCurrentTarget);
+
+        SetFocus (mCurrentTarget, EAIFocusPriority::Gameplay);
+
+        // Finish investigation.
+        mBlackBoard->SetValue<UBlackboardKeyType_Bool> (
+            mShouldInvestigateKeyID
+            , false);
+
+        // Update location to investigate.
+        mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
+            mPointToInvestigateKeyID
+            , NewStimulus.StimulusLocation);
+    }
+    // If the current target is a player, and is being heared, update the
+    // current 'Hearing' stimulus.
+    else if ((IsAPlayer)
+            && (mTargetStimulus.Type == HEARING)
+            && (NewStimulus.Type == HEARING))
+    {
+        mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
+            mPointToInvestigateKeyID
+            , NewStimulus.StimulusLocation);
+
+        mTargetStimulus = NewStimulus;
+    }
+    // If the current target is not a player, update the location to
+    // investigate.
+    else if (!IsAPlayer)
+    {
+        // Stop movement so that the AICharacter would move towards the last
+        // known stimulus location without passing through the location it
+        // was moving towards.
+        StopMovement ();
+
+        mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
+            mPointToInvestigateKeyID
+            , NewStimulus.StimulusLocation);
+
+        mTargetStimulus = NewStimulus;
+    }
+}
+
+void AFPSAIController::ClearTarget ()
 {
     if (!mCurrentTarget) return;
-
-    // Check that the stimulus passed is of the same type as the target
-    // stimulus.
-    if (!(mTargetStimulus.Type == Stimulus.Type)) return;
 
     // If the sensed actor is a player, investigate the last known location.
     if (mCurrentTarget->ActorHasTag ("Player"))
@@ -287,7 +324,7 @@ void AFPSAIController::ClearTarget (
         // Start investigating and update the location to investigate.
         mBlackBoard->SetValue<UBlackboardKeyType_Vector> (
             mPointToInvestigateKeyID
-            , Stimulus.StimulusLocation);
+            , mTargetStimulus.StimulusLocation);
         mBlackBoard->SetValue<UBlackboardKeyType_Bool> (
             mShouldInvestigateKeyID
             , true);
@@ -306,19 +343,20 @@ void AFPSAIController::TargetClosestPlayer (
     // Change target if the distance to the sensed actor is less than the
     // current target.
     if (FVector::Distance (
-        MyPawn->GetActorLocation ()
-        , SensedActor->GetActorLocation ())
+            MyPawn->GetActorLocation ()
+            , SensedActor->GetActorLocation ())
         < FVector::Distance (
             MyPawn->GetActorLocation ()
             , mCurrentTarget->GetActorLocation ()))
     {
-        SetTarget (SensedActor, Stimulus);
+        SetNewTarget (SensedActor, Stimulus);
     }
 }
 
 void AFPSAIController::ClearTargetAndFocus ()
 {
-    mCurrentTarget = nullptr;
+    mCurrentTarget  = nullptr;
+    mTargetStimulus = FAIStimulus{};
     mBlackBoard->ClearValue (mTargetKeyID);
     ClearFocus (EAIFocusPriority::Gameplay);
 }

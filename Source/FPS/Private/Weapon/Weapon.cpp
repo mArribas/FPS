@@ -97,7 +97,7 @@ void AWeapon::Tick (float DeltaTime)
     {
         mHitActor = nullptr;
 
-        DrawDebugLine (
+        /*DrawDebugLine (
             GetWorld ()
             , mMuzzleLocation->GetComponentLocation ()
             , EndPoint
@@ -106,13 +106,13 @@ void AWeapon::Tick (float DeltaTime)
             , -1
             , 0
             , 1.f
-        );
+        );*/
     }
     else
     {
         mHitActor = mHitResult.GetActor ();
 
-        DrawDebugLine (
+        /*DrawDebugLine (
             GetWorld ()
             , mMuzzleLocation->GetComponentLocation ()
             , mHitResult.Location
@@ -121,7 +121,7 @@ void AWeapon::Tick (float DeltaTime)
             , -1
             , 0
             , 1.f
-        );
+        );*/
     }
 }
 
