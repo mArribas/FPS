@@ -1,7 +1,7 @@
 # FPS
 Unreal C++ FPS
 
-A First Person Shooter 'prototipe' developed using: Unreal Engine 4 and C++.
+A First Person Shooter 'prototype' developed using: Unreal Engine 4 and C++.
   - The characters move using unreal movement component.
   - The AI use unreal perception and behaviourtrees.
   - The shoots use unreal raycast system.
